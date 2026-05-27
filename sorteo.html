@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sorteo Mehitor</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --surface2: #242424;
+    --border: rgba(255,255,255,0.08);
+    --accent: #c9f23a;
+    --accent-dim: rgba(201,242,58,0.12);
+    --accent-dim2: rgba(201,242,58,0.06);
+    --text: #f0f0f0;
+    --muted: #888;
+    --danger: #ff5c5c;
+    --danger-dim: rgba(255,92,92,0.1);
+    --success: #3affa0;
+    --success-dim: rgba(58,255,160,0.1);
+    --radius: 12px;
+    --radius-lg: 20px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 1.25rem 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    background: rgba(15,15,15,0.95);
+    backdrop-filter: blur(12px);
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.3rem;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+
+  .logo span { color: var(--accent); }
+
+  .badge {
+    font-size: 11px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 3px 10px;
+    border-radius: 100px;
+  }
+
+  main {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 3rem 2rem 6rem;
+  }
+
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 2.4rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
+    margin-bottom: 0.5rem;
+  }
+
+  h1 span { color: var(--accent); }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 15px;
+    margin-bottom: 2.5rem;
+  }
+
+  .steps {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 2.5rem;
+    flex-wrap: wrap;
+  }
+
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 6px 14px 6px 8px;
+    border-radius: 100px;
+    border: 1px solid var(--border);
+    transition: all 0.3s;
+  }
+
+  .step.active {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-dim2);
+  }
+
+  .step.done {
+    color: var(--success);
+    border-color: var(--success);
+    background: var(--success-dim);
+  }
+
+  .step-num {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+  }
+
+  .step.active .step-num { background: var(--accent); color: #000; }
+  .step.done .step-num { background: var(--success); color: #000; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 2rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .card-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    letter-spacing: -0.01em;
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .card-title .icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--accent-dim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+  }
+
+  .upload-zone {
+    border: 1.5px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 2.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .upload-zone:hover, .upload-zone.drag { 
+    border-color: var(--accent); 
+    background: var(--accent-dim2);
+  }
+
+  .upload-zone input[type=file] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+
+  .upload-icon { font-size: 2rem; margin-bottom: 0.75rem; }
+  .upload-label { font-family: 'Syne', sans-serif; font-weight: 600; font-size: 0.95rem; }
+  .upload-sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+  .config-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+
+  .field label {
+    display: block;
+    font-size: 12px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .field select, .field input[type=number] {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    padding: 10px 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    appearance: none;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .field select:focus, .field input[type=number]:focus {
+    border-color: var(--accent);
+  }
+
+  .col-map {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+  }
+
+  .col-tag {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .col-tag .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    flex-shrink: 0;
+  }
+
+  .col-tag.contact .dot { background: var(--success); }
+  .col-tag.missing .dot { background: var(--danger); }
+
+  .col-tag select {
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    outline: none;
+    width: 100%;
+    cursor: pointer;
+  }
+
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .stat {
+    background: var(--surface2);
+    border-radius: var(--radius);
+    padding: 1rem;
+    border: 1px solid var(--border);
+  }
+
+  .stat-val {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .stat-val.accent { color: var(--accent); }
+  .stat-val.success { color: var(--success); }
+  .stat-val.danger { color: var(--danger); }
+
+  .stat-label {
+    font-size: 11px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border-radius: var(--radius);
+    border: none;
+    cursor: pointer;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.02em;
+    transition: all 0.2s;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #000;
+  }
+
+  .btn-primary:hover { background: #d4f545; transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  .btn-outline {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  .btn-outline:hover { border-color: var(--muted); background: var(--surface2); }
+
+  .btn-success {
+    background: var(--success);
+    color: #000;
+  }
+
+  .btn-success:hover { filter: brightness(1.1); }
+
+  .actions { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+
+  .alert {
+    padding: 12px 16px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 1rem;
+  }
+
+  .alert-danger { background: var(--danger-dim); border: 1px solid rgba(255,92,92,0.2); color: #ff8888; }
+  .alert-success { background: var(--success-dim); border: 1px solid rgba(58,255,160,0.2); color: var(--success); }
+  .alert-info { background: var(--accent-dim); border: 1px solid rgba(201,242,58,0.2); color: var(--accent); }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  thead th {
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+  }
+
+  tbody tr:hover { background: var(--surface2); }
+  tbody tr:last-child { border-bottom: none; }
+
+  tbody td {
+    padding: 10px 12px;
+    color: var(--text);
+  }
+
+  .ticket-badge {
+    display: inline-flex;
+    align-items: center;
+    background: var(--accent);
+    color: #000;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 12px;
+    padding: 3px 10px;
+    border-radius: 100px;
+    letter-spacing: 0.04em;
+  }
+
+  .table-wrap {
+    overflow-x: auto;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    max-height: 400px;
+    overflow-y: auto;
+  }
+
+  .spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(0,0,0,0.2);
+    border-top-color: #000;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .hidden { display: none !important; }
+
+  #section-upload { }
+  #section-config { }
+  #section-results { }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 2rem 0;
+  }
+
+  .tag {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 100px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+
+  .tag-ok { background: var(--success-dim); color: var(--success); border: 1px solid rgba(58,255,160,0.3); }
+  .tag-no { background: var(--danger-dim); color: var(--danger); border: 1px solid rgba(255,92,92,0.3); }
+
+  .confetti-wrap {
+    text-align: center;
+    padding: 1rem 0 0.5rem;
+  }
+
+  .big-number {
+    font-family: 'Syne', sans-serif;
+    font-size: 4rem;
+    font-weight: 800;
+    color: var(--accent);
+    letter-spacing: -0.04em;
+    line-height: 1;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Mehitor <span>·</span> Sorteo</div>
+  <div class="badge">Sistema de sorteo</div>
+</header>
+
+<main>
+  <h1>Sistema de<br><span>Sorteo</span> de Entradas</h1>
+  <p class="subtitle">Subí tu Excel de clientes, configurá el sorteo y exportá los ganadores en segundos.</p>
+
+  <div class="steps">
+    <div class="step active" id="step1"><div class="step-num">1</div> Subir Excel</div>
+    <div class="step" id="step2"><div class="step-num">2</div> Configurar</div>
+    <div class="step" id="step3"><div class="step-num">3</div> Sortear</div>
+    <div class="step" id="step4"><div class="step-num">4</div> Exportar</div>
+  </div>
+
+  <!-- SECCIÓN 1: UPLOAD -->
+  <div id="section-upload">
+    <div class="card">
+      <div class="card-title">
+        <div class="icon">📂</div>
+        Subir archivo Excel
+      </div>
+
+      <div class="upload-zone" id="dropzone">
+        <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+        <div class="upload-icon">📊</div>
+        <div class="upload-label">Arrastrá tu Excel acá o hacé clic para seleccionar</div>
+        <div class="upload-sub">Acepta .xlsx, .xls, .csv · Sin límite de filas</div>
+      </div>
+
+      <div id="upload-error" class="alert alert-danger hidden" style="margin-top:1rem">
+        ⚠️ <span id="upload-error-msg"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECCIÓN 2: CONFIG -->
+  <div id="section-config" class="hidden">
+
+    <div class="card">
+      <div class="card-title">
+        <div class="icon">👥</div>
+        Datos cargados
+      </div>
+
+      <div class="stats-row">
+        <div class="stat">
+          <div class="stat-val accent" id="stat-total">0</div>
+          <div class="stat-label">Total filas</div>
+        </div>
+        <div class="stat">
+          <div class="stat-val success" id="stat-valid">0</div>
+          <div class="stat-label">Con contacto</div>
+        </div>
+        <div class="stat">
+          <div class="stat-val danger" id="stat-invalid">0</div>
+          <div class="stat-label">Sin contacto</div>
+        </div>
+        <div class="stat">
+          <div class="stat-val" id="stat-cols">0</div>
+          <div class="stat-label">Columnas</div>
+        </div>
+      </div>
+
+      <div id="col-mapping">
+        <div style="font-size:12px; font-family:'Syne',sans-serif; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted); margin-bottom:10px;">
+          Indicá qué columnas son datos de contacto
+        </div>
+        <div class="col-map" id="col-tags"></div>
+        <div style="margin-top:10px; font-size:12px; color:var(--muted);">
+          Marcá al menos una columna como <strong style="color:var(--success)">Teléfono</strong> o <strong style="color:var(--success)">Email</strong> para validar clientes.
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <div class="icon">🎰</div>
+        Configuración del sorteo
+      </div>
+
+      <div class="config-grid">
+        <div class="field">
+          <label>Cantidad de ganadores</label>
+          <input type="number" id="num-winners" value="500" min="1" max="10000">
+        </div>
+        <div class="field">
+          <label>Numeración de boletos</label>
+          <select id="ticket-start">
+            <option value="1">Del 1 al N</option>
+            <option value="0">Del 0 al N-1</option>
+            <option value="100">Del 100 al N+99</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="margin-top:1rem">
+        <div class="field">
+          <label>Nombre de la columna de boleto en el Excel exportado</label>
+          <input type="text" id="ticket-col-name" value="Nro Boleto" style="width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); padding:10px 14px; font-family:'DM Sans',sans-serif; font-size:14px; outline:none;">
+        </div>
+      </div>
+
+      <div id="config-alert" class="alert alert-danger hidden" style="margin-top:1rem">
+        ⚠️ <span id="config-alert-msg"></span>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" id="btn-sortear">
+        🎲 Realizar sorteo
+      </button>
+      <button class="btn btn-outline" id="btn-reset">↩ Volver a subir</button>
+    </div>
+  </div>
+
+  <!-- SECCIÓN 3: RESULTADOS -->
+  <div id="section-results" class="hidden">
+
+    <div class="card">
+      <div class="confetti-wrap">
+        <div style="font-size:2.5rem; margin-bottom:0.5rem">🎉</div>
+        <div class="big-number" id="res-count">500</div>
+        <div style="font-family:'Syne',sans-serif; font-weight:600; color:var(--muted); margin-top:6px; font-size:14px; letter-spacing:0.04em; text-transform:uppercase;">Ganadores sorteados</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <div class="icon">🏆</div>
+        Ganadores
+        <span style="margin-left:auto; font-size:13px; font-weight:400; color:var(--muted)" id="preview-label"></span>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead id="results-head"></thead>
+          <tbody id="results-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-success" id="btn-export">
+        ⬇️ Exportar Excel de ganadores
+      </button>
+      <button class="btn btn-primary" id="btn-nuevo-sorteo">
+        🎲 Nuevo sorteo
+      </button>
+      <button class="btn btn-outline" id="btn-reset2">↩ Cambiar archivo</button>
+    </div>
+  </div>
+
+</main>
+
+<script>
+let allData = [];
+let headers = [];
+let winners = [];
+let contactCols = [];
+
+const $ = id => document.getElementById(id);
+const show = id => $(id).classList.remove('hidden');
+const hide = id => $(id).classList.add('hidden');
+
+function setStep(n) {
+  for(let i=1;i<=4;i++){
+    const el = $('step'+i);
+    el.classList.remove('active','done');
+    if(i < n) el.classList.add('done');
+    else if(i === n) el.classList.add('active');
+  }
+}
+
+// --- UPLOAD ---
+const dropzone = $('dropzone');
+const fileInput = $('fileInput');
+
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropzone.classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if(f) processFile(f);
+});
+
+fileInput.addEventListener('change', e => {
+  if(e.target.files[0]) processFile(e.target.files[0]);
+});
+
+function processFile(file) {
+  hide('upload-error');
+  const ext = file.name.split('.').pop().toLowerCase();
+  if(!['xlsx','xls','csv'].includes(ext)){
+    showUploadError('Formato no soportado. Usá .xlsx, .xls o .csv');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'binary' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      if(json.length < 2) { showUploadError('El archivo está vacío o solo tiene encabezados.'); return; }
+      headers = json[0].map(h => String(h).trim());
+      allData = json.slice(1).filter(row => row.some(c => String(c).trim() !== ''));
+      setupConfig();
+    } catch(err) {
+      showUploadError('No se pudo leer el archivo. Verificá que no esté corrupto.');
+    }
+  };
+  reader.readAsBinaryString(file);
+}
+
+function showUploadError(msg) {
+  $('upload-error-msg').textContent = msg;
+  show('upload-error');
+}
+
+function setupConfig() {
+  hide('section-upload');
+  show('section-config');
+  setStep(2);
+
+  $('stat-total').textContent = allData.length.toLocaleString();
+  $('stat-cols').textContent = headers.length;
+
+  renderColTags();
+  updateStats();
+}
+
+// columnas detectadas automáticamente
+const CONTACT_HINTS = {
+  phone: ['tel','telefono','teléfono','phone','celular','cel','movil','móvil','whatsapp'],
+  email: ['email','mail','correo','e-mail'],
+};
+
+function detectColType(colName) {
+  const low = colName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  if(CONTACT_HINTS.phone.some(h => low.includes(h))) return 'phone';
+  if(CONTACT_HINTS.email.some(h => low.includes(h))) return 'email';
+  return 'none';
+}
+
+function renderColTags() {
+  const wrap = $('col-tags');
+  wrap.innerHTML = '';
+  headers.forEach((h, i) => {
+    const detected = detectColType(h);
+    const div = document.createElement('div');
+    div.className = 'col-tag';
+    div.innerHTML = `
+      <div class="dot"></div>
+      <div style="overflow:hidden">
+        <div style="font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${h}</div>
+        <select data-col="${i}" onchange="updateStats()">
+          <option value="none">— Otro —</option>
+          <option value="phone" ${detected==='phone'?'selected':''}>📞 Teléfono</option>
+          <option value="email" ${detected==='email'?'selected':''}>✉️ Email</option>
+        </select>
+      </div>
+    `;
+    if(detected !== 'none') div.classList.add('contact');
+    wrap.appendChild(div);
+  });
+  updateStats();
+}
+
+function getContactColIndices() {
+  const sels = document.querySelectorAll('#col-tags select');
+  const idxs = [];
+  sels.forEach(s => {
+    if(s.value !== 'none') idxs.push(parseInt(s.dataset.col));
+  });
+  return idxs;
+}
+
+function updateStats() {
+  contactCols = getContactColIndices();
+  const valid = allData.filter(row => contactCols.some(i => String(row[i]||'').trim() !== '')).length;
+  $('stat-valid').textContent = valid.toLocaleString();
+  $('stat-invalid').textContent = (allData.length - valid).toLocaleString();
+}
+
+// --- SORTEO ---
+$('btn-sortear').addEventListener('click', () => {
+  hide('config-alert');
+  contactCols = getContactColIndices();
+
+  if(contactCols.length === 0) {
+    $('config-alert-msg').textContent = 'Marcá al menos una columna como Teléfono o Email para filtrar clientes válidos.';
+    show('config-alert');
+    return;
+  }
+
+  const validClients = allData.filter(row => contactCols.some(i => String(row[i]||'').trim() !== ''));
+  const numWinners = parseInt($('num-winners').value) || 500;
+
+  if(validClients.length < numWinners) {
+    $('config-alert-msg').textContent = `Solo hay ${validClients.length.toLocaleString()} clientes con datos de contacto. Reducí la cantidad de ganadores o revisá los datos.`;
+    show('config-alert');
+    return;
+  }
+
+  // Fisher-Yates shuffle
+  const pool = [...validClients];
+  for(let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i+1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+
+  const ticketStart = parseInt($('ticket-start').value);
+  winners = pool.slice(0, numWinners).map((row, idx) => ({
+    row,
+    ticket: ticketStart + idx
+  }));
+
+  // Shuffle tickets
+  const ticketNums = winners.map(w => w.ticket);
+  for(let i = ticketNums.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i+1));
+    [ticketNums[i], ticketNums[j]] = [ticketNums[j], ticketNums[i]];
+  }
+  winners.forEach((w, i) => w.ticket = ticketNums[i]);
+  winners.sort((a,b) => a.ticket - b.ticket);
+
+  showResults(numWinners);
+});
+
+function showResults(numWinners) {
+  hide('section-config');
+  show('section-results');
+  setStep(4);
+
+  $('res-count').textContent = numWinners.toLocaleString();
+
+  const ticketColName = $('ticket-col-name').value || 'Nro Boleto';
+  const preview = winners.slice(0, 50);
+  $('preview-label').textContent = `Mostrando ${Math.min(50,winners.length)} de ${winners.length}`;
+
+  const thead = $('results-head');
+  const tbody = $('results-body');
+  thead.innerHTML = '';
+  tbody.innerHTML = '';
+
+  const tr = document.createElement('tr');
+  [ticketColName, ...headers].forEach(h => {
+    const th = document.createElement('th');
+    th.textContent = h;
+    tr.appendChild(th);
+  });
+  thead.appendChild(tr);
+
+  preview.forEach(w => {
+    const tr = document.createElement('tr');
+    const tdT = document.createElement('td');
+    tdT.innerHTML = `<span class="ticket-badge">#${w.ticket}</span>`;
+    tr.appendChild(tdT);
+    headers.forEach((_, i) => {
+      const td = document.createElement('td');
+      td.textContent = String(w.row[i] || '');
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+}
+
+// --- EXPORT ---
+$('btn-export').addEventListener('click', () => {
+  const ticketColName = $('ticket-col-name').value || 'Nro Boleto';
+  const exportData = [[ticketColName, ...headers]];
+  winners.forEach(w => {
+    exportData.push([w.ticket, ...headers.map((_, i) => w.row[i] || '')]);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(exportData);
+
+  // Estilo ancho de columnas
+  const colWidths = exportData[0].map((_, ci) => ({
+    wch: Math.min(40, Math.max(12, ...exportData.map(r => String(r[ci]||'').length)))
+  }));
+  ws['!cols'] = colWidths;
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Ganadores');
+  XLSX.writeFile(wb, `ganadores_sorteo_${new Date().toISOString().slice(0,10)}.xlsx`);
+});
+
+// --- RESET ---
+$('btn-reset').addEventListener('click', resetAll);
+$('btn-reset2').addEventListener('click', resetAll);
+$('btn-nuevo-sorteo').addEventListener('click', () => {
+  hide('section-results');
+  show('section-config');
+  setStep(2);
+});
+
+function resetAll() {
+  allData = []; headers = []; winners = []; contactCols = [];
+  fileInput.value = '';
+  hide('section-config');
+  hide('section-results');
+  hide('upload-error');
+  show('section-upload');
+  setStep(1);
+}
+</script>
+</body>
+</html>
