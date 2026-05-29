@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Generador de Boletos - Mehitor</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+
+<!-- Firebase -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, doc, setDoc, collection, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBNy_IhwHe-BQuPxglJOv3ogmnc_ct3m8M",
+    authDomain: "mehitor-sorteos.firebaseapp.com",
+    projectId: "mehitor-sorteos",
+    storageBucket: "mehitor-sorteos.firebasestorage.app",
+    messagingSenderId: "270129705396",
+    appId: "1:270129705396:web:e0b23a53e801796ad902e1"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  window._db = db;
+  window._firestoreReady = true;
+  window._setDoc = setDoc;
+  window._doc = doc;
+  window._collection = collection;
+  window._writeBatch = writeBatch;
+  console.log("Firebase listo");
+</script>
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f0f0f; --surface: #1a1a1a; --surface2: #242424;
+    --border: rgba(255,255,255,0.08); --accent: #c9f23a;
+    --accent-dim: rgba(201,242,58,0.12); --accent-dim2: rgba(201,242,58,0.06);
+    --text: #f0f0f0; --muted: #888; --danger: #ff5c5c;
+    --danger-dim: rgba(255,92,92,0.1); --success: #3affa0;
+    --success-dim: rgba(58,255,160,0.1); --radius: 12px; --radius-lg: 20px;
+  }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 15px; line-height: 1.6; min-height: 100vh; }
+  header { border-bottom: 1px solid var(--border); padding: 1.25rem 2rem; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: rgba(15,15,15,0.95); backdrop-filter: blur(12px); z-index: 100; }
+  .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.3rem; letter-spacing: -0.02em; }
+  .logo span { color: var(--accent); }
+  .badge { font-size: 11px; font-family: 'Syne', sans-serif; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); border: 1px solid var(--accent); padding: 3px 10px; border-radius: 100px; }
+  main { max-width: 860px; margin: 0 auto; padding: 3rem 2rem 6rem; }
+  h1 { font-family: 'Syne', sans-serif; font-size: 2.4rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1.15; margin-bottom: 0.5rem; }
+  h1 span { color: var(--accent); }
+  .subtitle { color: var(--muted); font-size: 15px; margin-bottom: 2.5rem; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 2rem; margin-bottom: 1.5rem; }
+  .card-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1rem; letter-spacing: -0.01em; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 10px; }
+  .card-title .icon { width: 32px; height: 32px; border-radius: 8px; background: var(--accent-dim); display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .upload-zone { border: 1.5px dashed var(--border); border-radius: var(--radius); padding: 2.5rem; text-align: center; cursor: pointer; transition: all 0.2s; position: relative; }
+  .upload-zone:hover { border-color: var(--accent); background: var(--accent-dim2); }
+  .upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .upload-icon { font-size: 2rem; margin-bottom: 0.75rem; }
+  .upload-label { font-family: 'Syne', sans-serif; font-weight: 600; font-size: 0.95rem; }
+  .upload-sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 24px; border-radius: var(--radius); border: none; cursor: pointer; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px; letter-spacing: 0.02em; transition: all 0.2s; }
+  .btn-primary { background: var(--accent); color: #000; }
+  .btn-primary:hover { background: #d4f545; transform: translateY(-1px); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .btn-outline:hover { border-color: var(--muted); background: var(--surface2); }
+  .btn-success { background: var(--success); color: #000; }
+  .actions { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; margin-top: 1.5rem; }
+  .alert { padding: 12px 16px; border-radius: var(--radius); font-size: 13px; display: flex; align-items: flex-start; gap: 10px; margin-bottom: 1rem; }
+  .alert-danger { background: var(--danger-dim); border: 1px solid rgba(255,92,92,0.2); color: #ff8888; }
+  .alert-success { background: var(--success-dim); border: 1px solid rgba(58,255,160,0.2); color: var(--success); }
+  .alert-info { background: var(--accent-dim); border: 1px solid rgba(201,242,58,0.2); color: var(--accent); }
+  .hidden { display: none !important; }
+  .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+  .stat { background: var(--surface2); border-radius: var(--radius); padding: 1rem; border: 1px solid var(--border); }
+  .stat-val { font-family: 'Syne', sans-serif; font-size: 1.8rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1; margin-bottom: 4px; color: var(--accent); }
+  .stat-label { font-size: 11px; font-family: 'Syne', sans-serif; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .progress-wrap { background: var(--surface2); border-radius: 100px; height: 8px; overflow: hidden; margin: 1rem 0; }
+  .progress-bar { height: 100%; background: var(--accent); border-radius: 100px; transition: width 0.3s; width: 0%; }
+  .progress-label { font-size: 13px; color: var(--muted); text-align: center; margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Mehitor <span>·</span> Boletos</div>
+  <div class="badge">Generador de QR</div>
+</header>
+
+<main>
+  <h1>Generador de<br><span>Boletos</span> con QR</h1>
+  <p class="subtitle">Subí el Excel de ganadores, subimos los boletos a Firebase y generamos los QR para compartir.</p>
+
+  <div id="section-upload">
+    <div class="card">
+      <div class="card-title"><div class="icon">📊</div> Subir Excel de ganadores</div>
+      <div class="upload-zone" id="dropzone">
+        <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+        <div class="upload-icon">📂</div>
+        <div class="upload-label">Arrastrá el Excel de ganadores o hacé clic</div>
+        <div class="upload-sub">El archivo exportado por el sistema de sorteo</div>
+      </div>
+      <div id="upload-error" class="alert alert-danger hidden" style="margin-top:1rem">⚠️ <span id="upload-error-msg"></span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><div class="icon">⚙️</div> Configuración del evento</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+        <div>
+          <label style="display:block; font-size:12px; font-family:'Syne',sans-serif; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted); margin-bottom:6px;">Nombre del evento</label>
+          <input type="text" id="evento-nombre" value="Picada de Motos - Mehitor" style="width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); padding:10px 14px; font-family:'DM Sans',sans-serif; font-size:14px; outline:none;">
+        </div>
+        <div>
+          <label style="display:block; font-size:12px; font-family:'Syne',sans-serif; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted); margin-bottom:6px;">Fecha del evento</label>
+          <input type="text" id="evento-fecha" placeholder="ej: 15 de Junio 2025" style="width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); padding:10px 14px; font-family:'DM Sans',sans-serif; font-size:14px; outline:none;">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="section-loaded" class="hidden">
+    <div class="card">
+      <div class="card-title"><div class="icon">👥</div> Ganadores cargados</div>
+      <div class="stats-row">
+        <div class="stat"><div class="stat-val" id="stat-total">0</div><div class="stat-label">Boletos</div></div>
+        <div class="stat"><div class="stat-val" id="stat-primero">—</div><div class="stat-label">Primer boleto</div></div>
+        <div class="stat"><div class="stat-val" id="stat-ultimo">—</div><div class="stat-label">Último boleto</div></div>
+      </div>
+
+      <div id="alert-firebase" class="alert alert-info">
+        🔥 Listo para subir a Firebase y generar los QR
+      </div>
+
+      <div id="progress-section" class="hidden">
+        <div class="progress-wrap"><div class="progress-bar" id="progress-bar"></div></div>
+        <div class="progress-label" id="progress-label">Subiendo boletos...</div>
+      </div>
+
+      <div id="alert-done" class="alert alert-success hidden">
+        ✅ ¡Todos los boletos están en Firebase! Ahora generá los QR para compartir.
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-primary" id="btn-subir">🔥 Subir a Firebase y generar QR</button>
+        <button class="btn btn-outline" id="btn-reset">↩ Cambiar archivo</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="section-qr" class="hidden">
+    <div class="card">
+      <div class="card-title"><div class="icon">🎟️</div> Boletos listos</div>
+
+      <div class="alert alert-success" style="margin-bottom:1.5rem">
+        ✅ <strong id="qr-count">0</strong> boletos subidos a Firebase. Hacé clic en cualquier boleto para descargarlo como PDF, o descargá todos juntos en un ZIP.
+      </div>
+
+      <!-- Barra de progreso PDF -->
+      <div id="pdf-progress-section" class="hidden" style="margin-bottom:1.5rem;">
+        <div class="progress-wrap"><div class="progress-bar" id="pdf-progress-bar"></div></div>
+        <div class="progress-label" id="pdf-progress-label">Generando PDFs...</div>
+      </div>
+
+      <div id="boletos-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px,1fr)); gap:1rem; max-height:500px; overflow-y:auto;"></div>
+
+      <div class="actions">
+        <button class="btn btn-success" id="btn-download-all">⬇️ Descargar todos como PDF (ZIP)</button>
+        <button class="btn btn-outline" id="btn-reset2">↩ Nuevo lote</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- QR oculto para generación -->
+  <div id="qr-hidden" style="position:absolute; left:-9999px; top:-9999px;"></div>
+</main>
+
+<script type="module">
+  const $ = id => document.getElementById(id);
+  const show = id => $(id).classList.remove('hidden');
+  const hide = id => $(id).classList.add('hidden');
+
+  let winners = [];
+  let headers = [];
+  let ticketCol = -1;
+  let nombreCols = [];
+  let qrDataURLs = [];
+
+  // --- UPLOAD ---
+  const dropzone = $('dropzone');
+  const fileInput = $('fileInput');
+
+  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.style.borderColor = 'var(--accent)'; });
+  dropzone.addEventListener('dragleave', () => dropzone.style.borderColor = '');
+  dropzone.addEventListener('drop', e => { e.preventDefault(); dropzone.style.borderColor = ''; if(e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]); });
+  fileInput.addEventListener('change', e => { if(e.target.files[0]) processFile(e.target.files[0]); });
+
+  function processFile(file) {
+    hide('upload-error');
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: 'binary' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        if(json.length < 2) { showErr('El archivo está vacío.'); return; }
+        headers = json[0].map(h => String(h).trim());
+        const rows = json.slice(1).filter(r => r.some(c => String(c).trim() !== ''));
+
+        ticketCol = headers.findIndex(h => /boleto|ticket|nro|número/i.test(h));
+        if(ticketCol === -1) ticketCol = 0;
+
+        nombreCols = headers.reduce((acc, h, i) => {
+          if(/nombre|apellido|name/i.test(h)) acc.push(i);
+          return acc;
+        }, []);
+        if(nombreCols.length === 0) nombreCols = [0];
+
+        winners = rows.map(r => ({
+          ticket: String(r[ticketCol] || '').trim(),
+          nombre: nombreCols.map(i => String(r[i] || '').trim()).filter(Boolean).join(' '),
+          row: r
+        })).filter(w => w.ticket !== '');
+
+        if(winners.length === 0) { showErr('No se encontraron boletos válidos. Verificá que el Excel tenga la columna de Nro Boleto.'); return; }
+
+        $('stat-total').textContent = winners.length;
+        $('stat-primero').textContent = winners[0].ticket;
+        $('stat-ultimo').textContent = winners[winners.length-1].ticket;
+
+        hide('section-upload');
+        show('section-loaded');
+      } catch(err) { showErr('No se pudo leer el archivo.'); }
+    };
+    reader.readAsBinaryString(file);
+  }
+
+  function showErr(msg) { $('upload-error-msg').textContent = msg; show('upload-error'); }
+
+  // --- SUBIR A FIREBASE ---
+  $('btn-subir').addEventListener('click', async () => {
+    if(!window._firestoreReady) { alert('Firebase todavía no cargó, esperá un segundo y volvé a intentar.'); return; }
+
+    $('btn-subir').disabled = true;
+    show('progress-section');
+    hide('alert-firebase');
+
+    const db = window._db;
+    const writeBatch = window._writeBatch;
+    const doc = window._doc;
+    const evento = $('evento-nombre').value || 'mehitor';
+    const eventoSlug = evento.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+
+    const BATCH_SIZE = 400;
+    let uploaded = 0;
+
+    for(let i = 0; i < winners.length; i += BATCH_SIZE) {
+      const batch = writeBatch(db);
+      const chunk = winners.slice(i, i + BATCH_SIZE);
+      chunk.forEach(w => {
+        const ref = doc(db, 'eventos', eventoSlug, 'boletos', w.ticket);
+        batch.set(ref, {
+          ticket: w.ticket,
+          nombre: w.nombre,
+          usado: false,
+          creadoEn: new Date().toISOString()
+        });
+      });
+      await batch.commit();
+      uploaded += chunk.length;
+      const pct = Math.round((uploaded / winners.length) * 100);
+      $('progress-bar').style.width = pct + '%';
+      $('progress-label').textContent = `Subiendo... ${uploaded} de ${winners.length}`;
+    }
+
+    $('progress-label').textContent = '¡Completado!';
+    show('alert-done');
+
+    await generarQRs(eventoSlug);
+  });
+
+  async function generarQRs(eventoSlug) {
+    hide('section-loaded');
+    show('section-qr');
+    $('qr-count').textContent = winners.length;
+
+    const grid = $('boletos-grid');
+    grid.innerHTML = '';
+    qrDataURLs = [];
+
+    const baseURL = window.location.origin + window.location.pathname.replace('boletos.html','') + 'puerta.html';
+
+    for(let i = 0; i < winners.length; i++) {
+      const w = winners[i];
+      const qrUrl = `${baseURL}?evento=${eventoSlug}&boleto=${w.ticket}`;
+
+      const qrDiv = document.createElement('div');
+      $('qr-hidden').appendChild(qrDiv);
+
+      await new Promise(resolve => {
+        new QRCode(qrDiv, {
+          text: qrUrl,
+          width: 120,
+          height: 120,
+          colorDark: '#111111',
+          colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.M
+        });
+        setTimeout(resolve, 100);
+      });
+
+      const qrCanvas = qrDiv.querySelector('canvas');
+      const qrDataURL = qrCanvas ? qrCanvas.toDataURL('image/png') : '';
+      qrDataURLs.push({ ticket: w.ticket, nombre: w.nombre, dataURL: qrDataURL });
+
+      // Card en grid
+      const card = document.createElement('div');
+      card.style.cssText = 'background:white; border-radius:12px; padding:16px; display:flex; align-items:center; gap:12px; cursor:pointer; transition:transform 0.15s; color:#111;';
+      card.innerHTML = `
+        <img src="${qrDataURL}" width="80" height="80" style="border-radius:6px; flex-shrink:0;">
+        <div>
+          <div style="font-size:10px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:#888; margin-bottom:2px;">Boleto</div>
+          <div style="font-family:'Syne',sans-serif; font-size:1.3rem; font-weight:800; color:#111; letter-spacing:-0.02em;">${w.ticket}</div>
+          <div style="font-size:12px; color:#555; margin-top:2px;">${w.nombre}</div>
+        </div>
+      `;
+      card.addEventListener('click', () => descargarBoletoPDF(w, qrDataURL));
+      card.addEventListener('mouseenter', () => card.style.transform = 'scale(1.02)');
+      card.addEventListener('mouseleave', () => card.style.transform = '');
+      grid.appendChild(card);
+    }
+  }
+
+  // ── GENERAR PDF DE UN BOLETO ──
+  function generarBoletoPDF(w, qrDataURL) {
+    return new Promise((resolve) => {
+      const { jsPDF } = window.jspdf;
+
+      // Tamaño del boleto en mm: 150mm × 60mm (horizontal tipo ticket)
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [150, 60] });
+
+      const W = 150;
+      const H = 60;
+
+      // Fondo blanco
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, 0, W, H, 'F');
+
+      // Franja izquierda roja
+      doc.setFillColor(220, 38, 38);
+      doc.rect(0, 0, 7, H, 'F');
+
+      // Línea decorativa derecha del QR
+      doc.setDrawColor(240, 240, 240);
+      doc.setLineWidth(0.4);
+      doc.line(W - 38, 6, W - 38, H - 6);
+
+      // Nombre del evento
+      const eventoNombre = $('evento-nombre').value || 'Picada - Mehitor';
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7.5);
+      doc.setTextColor(160, 160, 160);
+      doc.text(eventoNombre.toUpperCase(), 14, 13);
+
+      // Nombre del ganador
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.setTextColor(17, 17, 17);
+      const nombreDisplay = w.nombre.length > 26 ? w.nombre.substring(0, 24) + '…' : w.nombre;
+      doc.text(nombreDisplay, 14, 24);
+
+      // Label "BOLETO N°"
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7);
+      doc.setTextColor(160, 160, 160);
+      doc.text('BOLETO N°', 14, 33);
+
+      // Número de boleto (grande)
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(26);
+      doc.setTextColor(17, 17, 17);
+      doc.text(String(w.ticket), 14, 47);
+
+      // Fecha
+      const fecha = $('evento-fecha').value;
+      if(fecha) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7);
+        doc.setTextColor(160, 160, 160);
+        doc.text(fecha, 14, 55);
+      }
+
+      // QR
+      const qrSize = 32;
+      const qrX = W - 37;
+      const qrY = (H - qrSize) / 2;
+      doc.addImage(qrDataURL, 'PNG', qrX, qrY, qrSize, qrSize);
+
+      // "Escanear en puerta" bajo el QR
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6);
+      doc.setTextColor(160, 160, 160);
+      const labelX = qrX + qrSize / 2;
+      doc.text('Escanear en puerta', labelX, qrY + qrSize + 4, { align: 'center' });
+
+      resolve(doc);
+    });
+  }
+
+  async function descargarBoletoPDF(w, qrDataURL) {
+    const doc = await generarBoletoPDF(w, qrDataURL);
+    doc.save(`boleto_${w.ticket}_${w.nombre.replace(/\s+/g,'_')}.pdf`);
+  }
+
+  // ── DESCARGAR TODOS COMO ZIP DE PDFs ──
+  $('btn-download-all').addEventListener('click', async () => {
+    const JSZip = window.JSZip;
+    if(!JSZip) { alert('Cargando librería ZIP, intentá de nuevo en un segundo.'); return; }
+    if(!window.jspdf) { alert('jsPDF todavía no cargó, esperá un segundo.'); return; }
+    if(qrDataURLs.length === 0) { alert('No hay boletos generados aún.'); return; }
+
+    const btn = $('btn-download-all');
+    btn.disabled = true;
+    btn.textContent = 'Generando PDFs...';
+    show('pdf-progress-section');
+
+    const zip = new JSZip();
+
+    for(let i = 0; i < qrDataURLs.length; i++) {
+      const q = qrDataURLs[i];
+      const doc = await generarBoletoPDF({ ticket: q.ticket, nombre: q.nombre }, q.dataURL);
+      const pdfBlob = doc.output('arraybuffer');
+      zip.file(`boleto_${q.ticket}_${q.nombre.replace(/\s+/g,'_')}.pdf`, pdfBlob);
+
+      const pct = Math.round(((i + 1) / qrDataURLs.length) * 100);
+      $('pdf-progress-bar').style.width = pct + '%';
+      $('pdf-progress-label').textContent = `Generando PDF ${i+1} de ${qrDataURLs.length}...`;
+    }
+
+    $('pdf-progress-label').textContent = 'Comprimiendo ZIP...';
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'boletos_picada_motos_mehitor.zip';
+    link.click();
+
+    hide('pdf-progress-section');
+    btn.disabled = false;
+    btn.textContent = '⬇️ Descargar todos como PDF (ZIP)';
+  });
+
+  $('btn-reset').addEventListener('click', () => {
+    winners = []; hide('section-loaded'); show('section-upload'); fileInput.value = '';
+  });
+  $('btn-reset2').addEventListener('click', () => {
+    winners = []; hide('section-qr'); show('section-upload');
+    fileInput.value = ''; $('qr-hidden').innerHTML = ''; qrDataURLs = [];
+  });
+</script>
+</body>
+</html>
